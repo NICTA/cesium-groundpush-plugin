@@ -5,7 +5,7 @@
 </p>
 
 # Cesium Ground-Push Plugin
-A plugin that enables "excavating" terrain of a defined extent within Cesium. It allows a user to define an extent and push the terrain within that region up or down. The pushed region can also be textured with a different terrain tile. This could potentially be used to visualise geospatial data or imagery in subsurface context.
+A plugin that enables "excavating" terrain of a defined extent within Cesium. It allows a user to define an extent and push the terrain within that region up or down. The pushed region can also be textured with a different terrain tile. This could potentially be used to visualise geospatial data or imagery in subsurface context. Checkout the [demo](http://nicta.github.io/cesium-groundpush-plugin/example/).
 
 ## Cesium version
 Only working with version [b26](http://cesiumjs.org/downloads.html). Does not work with previous versions.
@@ -14,8 +14,6 @@ Only working with version [b26](http://cesiumjs.org/downloads.html). Does not wo
 Apache 2.0. Free for commercial and non-commercial use. See [LICENSE.md](LICENSE.md).
 
 ## Usage
-
-Checkout the demo in the [Example](Example) folder.
 
 Include the following into your source:
 
