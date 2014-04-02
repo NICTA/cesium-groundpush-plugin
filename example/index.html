@@ -4,7 +4,7 @@
 <title>Cesium Ground-push Demo</title>
     <link rel="stylesheet" href="../lib/cesium-b26/Widgets/widgets.css">
     <link rel="stylesheet" href="./example.css">
-    <script type="text/javascript" src="../lib/cesium-b26/Cesium.js"></script>
+    <script type="text/javascript" src="../lib/cesium-b27/Cesium.js"></script>
     <script type="text/javascript" src="../GroundPushCentralBodySurfaceShaderSet.js"></script>
     <script type="text/javascript" src="../GroundPushCentralBodyVS.js"></script>
     <script type="text/javascript" src="../GroundPushCentralBodyFS.js"></script>
@@ -39,7 +39,7 @@
     var centralBody = cesiumWidget.centralBody;
 
     // Set the camera to view the push extent.
-    cesiumWidget.scene.camera.controller.viewExtent(pushExtent);
+    cesiumWidget.scene.camera.viewExtent(pushExtent);
 
     // Add an imagery provider to show in the pushed region
     var imageryLayers = centralBody.imageryLayers;
@@ -54,8 +54,8 @@
     });
     imageryLayers.addImageryProvider(imageryProvider);
 
-    // Define this property to limit the ImageryLayer to the push region.
-    imageryLayers.get(1).showOnlyInPushedRegion = 1.0;
+    // Set this property to limit the ImageryLayer to the push region.
+    imageryLayers.get(1).showOnlyInPushedRegion = true;
 </script>
 
 </body>

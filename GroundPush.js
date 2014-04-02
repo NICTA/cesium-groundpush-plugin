@@ -6,7 +6,7 @@
  * options.pushDepth  The intial depth of the push region.
  * options.pushExtent  The extent of the region to be pushed.
  * options.pushBaseTint  A Cesium.Cartesian3 Object representing the colour tint of the base of the pushed region. 
- * options.pushSidesTint  A Cesium.Cartesian3 Object representing the colour tint of the base of the pushed region.
+ * options.pushSidesTint  A Cesium.Cartesian3 Object representing the colour tint of the sides of the pushed region.
  *
  * Make changes to the pushDepth by accessing the gp.pushDepth property.
  */
@@ -15,17 +15,20 @@ var GroundPush = function(Cesium, options) {
     // Defines the fraction of the extent width will be the push blend value.
     this._pushBlendFraction = 0.001;
     
-    if (typeof Cesium === undefined) {
+    if (typeof Cesium === 'undefined') {
         throw 'Cesium must be defined for this plugin to work.';
     }
-    if (typeof Cesium.defined === undefined || !Cesium.defined(Cesium.HeightmapTerrainData)) {
+    if (typeof Cesium.defined === 'undefined' || !Cesium.defined(Cesium.HeightmapTerrainData)) {
         throw 'Version of Cesium is too old, please upgrade Cesium.';
     }
     this.Cesium = Cesium;
 
     this.pushDepth = Cesium.defaultValue(options.pushDepth, 0.0);
 
-    this.setInnerExtent(Cesium.defaultValue(options.pushExtent, new Cesium.Extent(0.0, 0.0, 0.0, 0.0)));
+    if (!Cesium.defined(options.pushExtent)) {
+        throw 'pushExtent option must be defined at initialisation of GroundPush.';
+    }
+    this.setInnerExtent(options.pushExtent);
     
     this.pushBaseTint = Cesium.defaultValue(options.pushBaseTint, new Cesium.Cartesian3(1.0, 1.0, 1.0));
     this.pushSidesTint = Cesium.defaultValue(options.pushSidesTint, new Cesium.Cartesian3(1.0, 1.0, 1.0));
@@ -46,7 +49,8 @@ var GroundPush = function(Cesium, options) {
         var extent = tilingScheme.tileXYToExtent(x, y, level);
         
         // Check if the current tile contains any part of the extent
-        var tileContainsExtent = !extent.intersectWith(that._outerExtent).isEmpty() || !extent.intersectWith(that._innerExtent).isEmpty();
+        var tileContainsExtent = !Cesium.Extent.isEmpty(Cesium.Extent.intersectWith(extent, that._outerExtent))
+            || !Cesium.Extent.isEmpty(Cesium.Extent.intersectWith(extent, that._innerExtent));
         
         if (!Cesium.defined(terrainMesh)) {
             // Postponed
@@ -165,8 +169,8 @@ var GroundPush = function(Cesium, options) {
 
             while (numberOfDayTextures < tileCommands[i].uniformMap.dayTextures.length) {
                 var imageryLayer = tileCommands[i].owner.imagery[numberOfDayTextures].readyImagery.imageryLayer;
-                if (typeof imageryLayer.showOnlyInPushedRegion !== 'undefined') {
-                    uniformMap.showOnlyInPushedRegion[numberOfDayTextures] = imageryLayer.showOnlyInPushedRegion;
+                if (imageryLayer.showOnlyInPushedRegion) {
+                    uniformMap.showOnlyInPushedRegion[numberOfDayTextures] = 1.0;
                 } else {
                     uniformMap.showOnlyInPushedRegion[numberOfDayTextures] = 0.0;
                 }

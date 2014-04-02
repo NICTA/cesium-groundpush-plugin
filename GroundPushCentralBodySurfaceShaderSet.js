@@ -92,7 +92,7 @@ GroundPushCentralBodySurfaceShaderSet.prototype.getShaderProgram = function(cont
             '    return color;\n' +
             '}';
 
-        shader = context.getShaderCache().getShaderProgram(
+        shader = context.shaderCache.getShaderProgram(
             vs,
             fs,
             this._attributeLocations);
@@ -102,7 +102,6 @@ GroundPushCentralBodySurfaceShaderSet.prototype.getShaderProgram = function(cont
 };
 
 GroundPushCentralBodySurfaceShaderSet.prototype.destroy = function() {
-    'use strict';
     this.invalidateShaders();
     return Cesium.destroyObject(this);
 };

@@ -8,7 +8,7 @@
 A plugin that enables "excavating" terrain of a defined extent within Cesium. It allows a user to define an extent and push the terrain within that region up or down. The pushed region can also be textured with a different terrain tile. This could potentially be used to visualise geospatial data or imagery in subsurface context. Checkout the [demo](http://nicta.github.io/cesium-groundpush-plugin/example/).
 
 ## Cesium version
-Only working with version [b26](http://cesiumjs.org/downloads.html). Does not work with previous versions.
+Currently only working with version [b27](http://cesiumjs.org/downloads.html). Does not work with previous versions.
 
 ## License
 Apache 2.0. Free for commercial and non-commercial use. See [LICENSE.md](LICENSE.md).
@@ -18,13 +18,23 @@ Apache 2.0. Free for commercial and non-commercial use. See [LICENSE.md](LICENSE
 Include the following into your source:
 
 ```HTML
+<script type="text/javascript" src="[your path to Cesium]/Cesium.js"></script>
 <script type="text/javascript" src="GroundPushCentralBodySurfaceShaderSet.js"></script>
 <script type="text/javascript" src="GroundPushCentralBodyVS.js"></script>
 <script type="text/javascript" src="GroundPushCentralBodyFS.js"></script>
 <script type="text/javascript" src="GroundPush.js"></script>
 ```
 
-Setup the options you require for the ground push:
+Before you do __anything__ with Cesium you must setup and initialise the Ground-Push plugin.
+
+First, setup the options you require for the ground-push. Currently these include:
+
+* `pushDepth` - The intial height of the push region in metres.
+* `pushExtent` - __Required__: A Cesium Extent of the region to be pushed.
+* `pushBaseTint` - A Cesium Cartesian3 representing the RGB colour tint of the base of the pushed region. 
+* `pushSidesTint` - A Cesium Cartesian3 representing the RGB colour tint of the sides of the pushed region.
+
+E.g.
 
 ```JavaScript
 var options = {
@@ -34,13 +44,13 @@ var options = {
 };
 ```
 
-Then initialise Ground-Push by passing in Cesium and options:
+Then initialise ground-push by passing in Cesium and options:
 
 ```JavaScript
 var gp = new GroundPush(Cesium, options);
 ```
 
-You can add an imagery layer to the push region by defining the `showOnlyInPushedRegion` on that imagery layer:
+If you want to apply a different texture to the pushed region you can use a Cesium Imagery Layer. Create it and add it as [usual](http://cesiumjs.org/Cesium/Apps/Sandcastle/index.html?src=Imagery%20Layers.html&label=All), then define the `showOnlyInPushedRegion` to `true` on that layer:
 
 ```JavaScript
 var imageryLayers = centralBody.imageryLayers;
@@ -52,17 +62,19 @@ var imageryProvider = new Cesium.TileMapServiceImageryProvider({
 imageryLayers.addImageryProvider(imageryProvider);
 
 // Define this property to limit the ImageryLayer to the push region.
-imageryLayers.get(1).showOnlyInPushedRegion = 1.0;
+imageryLayers.get(1).showOnlyInPushedRegion = true;
 ```
 
-You can change the push depth by accessing the `pushDepth` property of the GroundPush object:
+You can change the push depth at any time simply by accessing the `pushDepth` property of the GroundPush object:
 
 ```JavaScript
 gp.pushDepth = -20000;
 ```
 
+Currently, however, you cannot change the push extent once ground-push has been initialised.
+
 ##Known Issues
 
- * Changing the push extent region once initialised does not work correctly.
  * Zooming too close to the pushed region - tiles within the push extent will disappear due to culling.
  * Horizon culling can be an issue at low angles.
+ * Changing the push extent region once initialised does not work correctly.
