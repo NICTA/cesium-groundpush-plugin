@@ -8,7 +8,7 @@
 A plugin that enables "excavating" terrain of a defined rectangle within Cesium. It allows a user to define an rectangle and push the terrain within that region up or down. The pushed region can also be textured with a different terrain tile. This could potentially be used to visualise geospatial data or imagery in subsurface context. Checkout the [demo](http://nicta.github.io/cesium-groundpush-plugin/example/).
 
 ## Cesium version
-Currently working with version [b27](http://cesiumjs.org/downloads.html). For earlier Cesium releases, please check the Ground-Push Plugin [releases](releases).
+Currently working with version [b28](http://cesiumjs.org/downloads.html). For earlier Cesium releases, please check the Ground-Push Plugin [releases](https://github.com/NICTA/cesium-groundpush-plugin/releases).
 
 ## License
 Apache 2.0. Free for commercial and non-commercial use. See [LICENSE.md](LICENSE.md).
