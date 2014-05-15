@@ -2,12 +2,12 @@
 <html>
 <head>
 <title>Cesium Ground-push Demo</title>
-    <link rel="stylesheet" href="../lib/cesium-b27/Widgets/widgets.css">
+    <link rel="stylesheet" href="../lib/cesium-b28/Widgets/widgets.css">
     <link rel="stylesheet" href="./example.css">
-    <script type="text/javascript" src="../lib/cesium-b27/Cesium.js"></script>
-    <script type="text/javascript" src="../GroundPushCentralBodySurfaceShaderSet.js"></script>
-    <script type="text/javascript" src="../GroundPushCentralBodyVS.js"></script>
-    <script type="text/javascript" src="../GroundPushCentralBodyFS.js"></script>
+    <script type="text/javascript" src="../lib/cesium-b28/Cesium.js"></script>
+    <script type="text/javascript" src="../GroundPushGlobeSurfaceShaderSet.js"></script>
+    <script type="text/javascript" src="../GroundPushGlobeVS.js"></script>
+    <script type="text/javascript" src="../GroundPushGlobeFS.js"></script>
     <script type="text/javascript" src="../GroundPush.js"></script>
 </head>
 <body>
@@ -17,7 +17,7 @@
     var lon = 151.21;
     var width = 1.0;
 
-    var pushExtent = new Cesium.Extent(
+    var pushRectangle = new Cesium.Rectangle(
         Cesium.Math.toRadians(lon - width),
         Cesium.Math.toRadians(lat - width),
         Cesium.Math.toRadians(lon + width),
@@ -27,7 +27,7 @@
     var pushDepth = -50000;
 
     options = {
-        pushExtent : pushExtent,
+        pushRectangle : pushRectangle,
         pushDepth : pushDepth,
         pushSidesTint : new Cesium.Cartesian3(0.7, 0.6, 0.5)
     };
@@ -36,21 +36,21 @@
     var gp = new GroundPush(Cesium, options);
 
     var cesiumWidget = new Cesium.CesiumWidget('cesiumContainer');
-    var centralBody = cesiumWidget.centralBody;
+    var globe = cesiumWidget.scene.globe;
 
-    // Set the camera to view the push extent.
-    cesiumWidget.scene.camera.viewExtent(pushExtent);
+    // Set the camera to view the push rectangle.
+    cesiumWidget.scene.camera.viewRectangle(pushRectangle);
 
     // Add an imagery provider to show in the pushed region
-    var imageryLayers = centralBody.imageryLayers;
+    var imageryLayers = globe.imageryLayers;
     var imageryProvider = new Cesium.TileMapServiceImageryProvider({
         url : '//cesium.agi.com/blackmarble',
         maximumLevel : 8,
         credit : 'Black Marble imagery courtesy NASA Earth Observatory',
 
-        // Limit the extent of the imagery layer so that tiles
+        // Limit the rectangle of the imagery layer so that tiles
         // that will never be visible aren't loaded.
-        extent : gp.getOuterExtent()
+        rectangle : gp.getOuterRectangle()
     });
     imageryLayers.addImageryProvider(imageryProvider);
 

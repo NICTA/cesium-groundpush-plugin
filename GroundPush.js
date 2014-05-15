@@ -1,10 +1,10 @@
 /**
- * The GroundPush Object that initialises Cesium to allow for push a defined extent.
+ * The GroundPush Object that initialises Cesium to allow for push a defined rectangle.
  * @param {Cesium} Cesium  The result of Cesium.js
  * @param {Object} options  The options include:
  *
  * options.pushDepth  The intial depth of the push region.
- * options.pushExtent  The extent of the region to be pushed.
+ * options.pushRectangle  The rectangle of the region to be pushed.
  * options.pushBaseTint  A Cesium.Cartesian3 Object representing the colour tint of the base of the pushed region. 
  * options.pushSidesTint  A Cesium.Cartesian3 Object representing the colour tint of the sides of the pushed region.
  *
@@ -12,7 +12,7 @@
  */
 var GroundPush = function(Cesium, options) {
     'use strict';
-    // Defines the fraction of the extent width will be the push blend value.
+    // Defines the fraction of the rectangle width will be the push blend value.
     this._pushBlendFraction = 0.001;
     
     if (typeof Cesium === 'undefined') {
@@ -25,10 +25,10 @@ var GroundPush = function(Cesium, options) {
 
     this.pushDepth = Cesium.defaultValue(options.pushDepth, 0.0);
 
-    if (!Cesium.defined(options.pushExtent)) {
-        throw 'pushExtent option must be defined at initialisation of GroundPush.';
+    if (!Cesium.defined(options.pushRectangle)) {
+        throw 'pushRectangle option must be defined at initialisation of GroundPush.';
     }
-    this.setInnerExtent(options.pushExtent);
+    this.setInnerRectangle(options.pushRectangle);
     
     this.pushBaseTint = Cesium.defaultValue(options.pushBaseTint, new Cesium.Cartesian3(1.0, 1.0, 1.0));
     this.pushSidesTint = Cesium.defaultValue(options.pushSidesTint, new Cesium.Cartesian3(1.0, 1.0, 1.0));
@@ -40,17 +40,17 @@ var GroundPush = function(Cesium, options) {
      * Modifying the passed in Cesium to allow for ground pushing...
      */
 
-    // Wrapper for the createMesh function, modifies the vertices to provide the extent.
+    // Wrapper for the createMesh function, modifies the vertices to provide the rectangle.
     var newCreateMesh = function(tilingScheme, x, y, level) {
         var terrainMesh = this._oldCreateMesh(tilingScheme, x, y, level);
 
         var ellipsoid = tilingScheme.ellipsoid;
 
-        var extent = tilingScheme.tileXYToExtent(x, y, level);
+        var rectangle = tilingScheme.tileXYToRectangle(x, y, level);
         
-        // Check if the current tile contains any part of the extent
-        var tileContainsExtent = !Cesium.Extent.isEmpty(Cesium.Extent.intersectWith(extent, that._outerExtent))
-            || !Cesium.Extent.isEmpty(Cesium.Extent.intersectWith(extent, that._innerExtent));
+        // Check if the current tile contains any part of the rectangle
+        var tileContainsRectangle = !Cesium.Rectangle.isEmpty(Cesium.Rectangle.intersectWith(rectangle, that._outerRectangle))
+            || !Cesium.Rectangle.isEmpty(Cesium.Rectangle.intersectWith(rectangle, that._innerRectangle));
         
         if (!Cesium.defined(terrainMesh)) {
             // Postponed
@@ -58,13 +58,13 @@ var GroundPush = function(Cesium, options) {
         }
         
         return Cesium.when(terrainMesh, function(result) {
-            if (Cesium.defined(result) && tileContainsExtent) {
+            if (Cesium.defined(result) && tileContainsRectangle) {
                 var slicedResult = insertPushVertices({
-                    innerExtent : that._innerExtent,
-                    outerExtent : that._outerExtent,
+                    innerRectangle : that._innerRectangle,
+                    outerRectangle : that._outerRectangle,
                     vertices : result.vertices,
                     indices : result.indices,
-                    tileExtent : extent,
+                    tileRectangle : rectangle,
                     ellipsoid : ellipsoid,
                     center : result.center
                 });
@@ -82,21 +82,21 @@ var GroundPush = function(Cesium, options) {
     Cesium.QuantizedMeshTerrainData.prototype.createMesh = newCreateMesh;
 
     
-    // Replace the original Cesium CentralBodySurfaceShaderSet.
-    Cesium.CentralBodySurfaceShaderSet.prototype = GroundPushCentralBodySurfaceShaderSet.prototype;
+    // Replace the original Cesium GlobeSurfaceShaderSet.
+    Cesium.GlobeSurfaceShaderSet.prototype = GroundPushGlobeSurfaceShaderSet.prototype;
     
     // Add the uniforms to the central body 
-    Cesium.CentralBody.prototype._oldUpdate = Cesium.CentralBody.prototype.update;
-    Cesium.CentralBody.prototype.update = function(context, frameState, commandList) {
+    Cesium.Globe.prototype._oldUpdate = Cesium.Globe.prototype.update;
+    Cesium.Globe.prototype.update = function(context, frameState, commandList) {
         // Call the original constructor.
         if (!Cesium.defined(this._drawUniforms.u_pushDepth)) {
             // Add extra draw uniforms.
             this._drawUniforms.u_pushDepth = function() {
                 return that.pushDepth;
             };
-            this._drawUniforms.u_pushExtent = function() {
-                var extent = that._innerExtent;
-                return new Cesium.Cartesian4(extent.west, extent.south, extent.east, extent.north);
+            this._drawUniforms.u_pushRectangle = function() {
+                var rectangle = that._innerRectangle;
+                return new Cesium.Cartesian4(rectangle.west, rectangle.south, rectangle.east, rectangle.north);
             };
             this._drawUniforms.u_pushBlend = function() {
                 return that.pushBlend;
@@ -116,55 +116,55 @@ var GroundPush = function(Cesium, options) {
     
     // Intercepts the getShaderProgram function and replaces the current vertex and fragment shaders
     // allowing to push vertices and texture the push region.
-    Cesium.CentralBodySurfaceShaderSet.prototype._oldGetShaderProgram = Cesium.CentralBodySurfaceShaderSet.prototype.getShaderProgram;
-    Cesium.CentralBodySurfaceShaderSet.prototype.getShaderProgram = function(context, textureCount, applyBrightness, applyContrast, applyHue, applySaturation, applyGamma, applyAlpha) {
+    Cesium.GlobeSurfaceShaderSet.prototype._oldGetShaderProgram = Cesium.GlobeSurfaceShaderSet.prototype.getShaderProgram;
+    Cesium.GlobeSurfaceShaderSet.prototype.getShaderProgram = function(context, textureCount, applyBrightness, applyContrast, applyHue, applySaturation, applyGamma, applyAlpha) {
         // Text to replace is after the first occurance of '#line 0' but before the next occurance of '#line 0'
         var end = this.baseVertexShaderString.indexOf('#line 0', this.baseVertexShaderString.indexOf('#line 0') + 1);
         if (end < 0) {
-            this.baseVertexShaderString = GroundPushCentralBodyVS;
+            this.baseVertexShaderString = GroundPushGlobeVS;
         } else {
-            this.baseVertexShaderString = GroundPushCentralBodyVS + this.baseVertexShaderString.substring(end);
+            this.baseVertexShaderString = GroundPushGlobeVS + this.baseVertexShaderString.substring(end);
         }
 
         end = this.baseFragmentShaderString.indexOf('#line 0', this.baseFragmentShaderString.indexOf('#line 0') + 1);
         if (end < 0) {
-            this.baseFragmentShaderString = GroundPushCentralBodyFS;
+            this.baseFragmentShaderString = GroundPushGlobeFS;
         } else {
-            this.baseFragmentShaderString = GroundPushCentralBodyFS + this.baseFragmentShaderString.substring(end);
+            this.baseFragmentShaderString = GroundPushGlobeFS + this.baseFragmentShaderString.substring(end);
         }
 
         return this._oldGetShaderProgram(context, textureCount, applyBrightness, applyContrast, applyHue, applySaturation, applyGamma, applyAlpha);
     };
     
     
-    // Cesium.CentralBodySurface tweaking - adding uniforms and extra commands.
-    Cesium.CentralBodySurface.prototype._oldUpdate = Cesium.CentralBodySurface.prototype.update;
-    Cesium.CentralBodySurface.prototype.update = function(context, frameState, commandList, centralBodyUniformMap, shaderSet, renderState, projection) {
+    // Cesium.GlobeSurface tweaking - adding uniforms and extra commands.
+    Cesium.GlobeSurface.prototype._oldUpdate = Cesium.GlobeSurface.prototype.update;
+    Cesium.GlobeSurface.prototype.update = function(context, frameState, commandList, globeUniformMap, shaderSet, renderState, projection) {
         // Call the original update
-        this._oldUpdate(context, frameState, commandList, centralBodyUniformMap, shaderSet, renderState, projection);
+        this._oldUpdate(context, frameState, commandList, globeUniformMap, shaderSet, renderState, projection);
 
         // Now modify the tile commands to include the required uniforms.
         var tileCommands = this._tileCommands;
-        var realTileExtentFunc = function() { return this.realTileExtent; };
+        var realTileRectangleFunc = function() { return this.realTileRectangle; };
         var showOnlyInPushedRegionFunc = function() { return this.showOnlyInPushedRegion; };
 
         for (var i = 0; i < tileCommands.length; i++) {
             var uniformMap = tileCommands[i].uniformMap;
 
-            if (!Cesium.defined(uniformMap.u_realTileExtent)) {
-                uniformMap.u_realTileExtent = realTileExtentFunc;
+            if (!Cesium.defined(uniformMap.u_realTileRectangle)) {
+                uniformMap.u_realTileRectangle = realTileRectangleFunc;
             }
             if (!Cesium.defined(uniformMap.u_showOnlyInPushedRegion)) {
                 uniformMap.u_showOnlyInPushedRegion = showOnlyInPushedRegionFunc;
             }
-            if (!Cesium.defined(uniformMap.realTileExtent)) {
-                uniformMap.realTileExtent = new Cesium.Cartesian4();
+            if (!Cesium.defined(uniformMap.realTileRectangle)) {
+                uniformMap.realTileRectangle = new Cesium.Cartesian4();
             }
             if (!Cesium.defined(uniformMap.showOnlyInPushedRegion)) {
                 uniformMap.showOnlyInPushedRegion = [];
             }
 
-            var realTileExtent = tileCommands[i].owner.extent;
+            var realTileRectangle = tileCommands[i].owner.rectangle;
             var numberOfDayTextures = 0;
 
             while (numberOfDayTextures < tileCommands[i].uniformMap.dayTextures.length) {
@@ -176,7 +176,7 @@ var GroundPush = function(Cesium, options) {
                 }
                 ++numberOfDayTextures;
             }
-            uniformMap.realTileExtent= new Cesium.Cartesian4(realTileExtent.west, realTileExtent.south, realTileExtent.east, realTileExtent.north);
+            uniformMap.realTileRectangle= new Cesium.Cartesian4(realTileRectangle.west, realTileRectangle.south, realTileRectangle.east, realTileRectangle.north);
         }
     };
     
@@ -202,15 +202,15 @@ var GroundPush = function(Cesium, options) {
     var cartographicScratch = new Cesium.Cartographic();
 
     /**
-     * Inserts vertices to a given tile along the boundaries of the inner extent and outer extent
-     * if either overlaps with the tileExtent.
+     * Inserts vertices to a given tile along the boundaries of the inner rectangle and outer rectangle
+     * if either overlaps with the tileRectangle.
      * 
      * @param  {Object} parameters The input parameters are:
-     * parameters.innerExtent  the inner extent of the push region.
-     * parameters.outerExtent  the outer extent of the push region.
+     * parameters.innerRectangle  the inner rectangle of the push region.
+     * parameters.outerRectangle  the outer rectangle of the push region.
      * parameters.vertices  the vertex buffer of the tile being modified.
      * parameters.indices  the index buffer of the tile being modified.
-     * parameters.tileExtent  the extent of the tile being modified.
+     * parameters.tileRectangle  the rectangle of the tile being modified.
      * parameters.ellipsoid  the central body ellipsoid.
      * parameters.center  the center of the tile.
      * 
@@ -222,20 +222,20 @@ var GroundPush = function(Cesium, options) {
 
         var newVerticesMap = {};
 
-        var westOuterSliceValue = (parameters.outerExtent.west - parameters.tileExtent.west) / (parameters.tileExtent.east - parameters.tileExtent.west);
-        var eastOuterSliceValue = (parameters.outerExtent.east - parameters.tileExtent.west) / (parameters.tileExtent.east - parameters.tileExtent.west);
-        var northOuterSliceValue = (parameters.outerExtent.north - parameters.tileExtent.south) / (parameters.tileExtent.north - parameters.tileExtent.south);
-        var southOuterSliceValue = (parameters.outerExtent.south - parameters.tileExtent.south) / (parameters.tileExtent.north - parameters.tileExtent.south);
+        var westOuterSliceValue = (parameters.outerRectangle.west - parameters.tileRectangle.west) / (parameters.tileRectangle.east - parameters.tileRectangle.west);
+        var eastOuterSliceValue = (parameters.outerRectangle.east - parameters.tileRectangle.west) / (parameters.tileRectangle.east - parameters.tileRectangle.west);
+        var northOuterSliceValue = (parameters.outerRectangle.north - parameters.tileRectangle.south) / (parameters.tileRectangle.north - parameters.tileRectangle.south);
+        var southOuterSliceValue = (parameters.outerRectangle.south - parameters.tileRectangle.south) / (parameters.tileRectangle.north - parameters.tileRectangle.south);
 
-        var westInnerSliceValue = (parameters.innerExtent.west - parameters.tileExtent.west) / (parameters.tileExtent.east - parameters.tileExtent.west);
-        var eastInnerSliceValue = (parameters.innerExtent.east - parameters.tileExtent.west) / (parameters.tileExtent.east - parameters.tileExtent.west);
-        var northInnerSliceValue = (parameters.innerExtent.north - parameters.tileExtent.south) / (parameters.tileExtent.north - parameters.tileExtent.south);
-        var southInnerSliceValue = (parameters.innerExtent.south - parameters.tileExtent.south) / (parameters.tileExtent.north - parameters.tileExtent.south);
+        var westInnerSliceValue = (parameters.innerRectangle.west - parameters.tileRectangle.west) / (parameters.tileRectangle.east - parameters.tileRectangle.west);
+        var eastInnerSliceValue = (parameters.innerRectangle.east - parameters.tileRectangle.west) / (parameters.tileRectangle.east - parameters.tileRectangle.west);
+        var northInnerSliceValue = (parameters.innerRectangle.north - parameters.tileRectangle.south) / (parameters.tileRectangle.north - parameters.tileRectangle.south);
+        var southInnerSliceValue = (parameters.innerRectangle.south - parameters.tileRectangle.south) / (parameters.tileRectangle.north - parameters.tileRectangle.south);
 
         var longSlicePlaneNormal = new Cesium.Cartesian3(1, 0, 0); // u unit normal vect. => vertical slice.
         var latSlicePlaneNormal = new Cesium.Cartesian3(0, 1, 0); // v unit normal vect. => horizontal slice.
 
-        // The 8 slice planes that make up the extent, both inner and outer.
+        // The 8 slice planes that make up the rectangle, both inner and outer.
         var westOuterSlicePlane = new Cesium.Plane(longSlicePlaneNormal, -westOuterSliceValue);
         var eastOuterSlicePlane = new Cesium.Plane(longSlicePlaneNormal, -eastOuterSliceValue);
         var northOuterSlicePlane = new Cesium.Plane(latSlicePlaneNormal, -northOuterSliceValue);
@@ -359,11 +359,11 @@ var GroundPush = function(Cesium, options) {
 
         var vertexBuffer = new Float32Array(cartesianVertexBuffer.length * vertexStride);
         var ellipsoid = parameters.ellipsoid;
-        var tileExtent = parameters.tileExtent;
-        var west = tileExtent.west;
-        var south = tileExtent.south;
-        var east = tileExtent.east;
-        var north = tileExtent.north;
+        var tileRectangle = parameters.tileRectangle;
+        var west = tileRectangle.west;
+        var south = tileRectangle.south;
+        var east = tileRectangle.east;
+        var north = tileRectangle.north;
 
         // Make the full vertex buffer with new vertices included.
         for (i = 0, bufferIndex = 0; bufferIndex < vertexBuffer.length; ++i, bufferIndex += vertexStride) {
@@ -699,65 +699,65 @@ var GroundPush = function(Cesium, options) {
  */
 
 /**
- * Returns the actual inner extent of the push region.
- * @return {Extent}  The inner extent.
+ * Returns the actual inner rectangle of the push region.
+ * @return {Rectangle}  The inner rectangle.
  */
-GroundPush.prototype.getInnerExtent = function() {
+GroundPush.prototype.getInnerRectangle = function() {
     'use strict';
-    return this._innerExtent;
+    return this._innerRectangle;
 };
 
 /**
- * Sets the inner extent of the push region. Recalculates the outer extent automatically.
- * @param {Extent} newExtent  The new inner extent of the push region.
+ * Sets the inner rectangle of the push region. Recalculates the outer rectangle automatically.
+ * @param {Rectangle} newRectangle  The new inner rectangle of the push region.
  */
-GroundPush.prototype.setInnerExtent = function(newExtent) {
+GroundPush.prototype.setInnerRectangle = function(newRectangle) {
     'use strict';
-    if (this.Cesium.defined(newExtent)) {
-        this._innerExtent = newExtent;
-        this.setOuterExtent();
+    if (this.Cesium.defined(newRectangle)) {
+        this._innerRectangle = newRectangle;
+        this.setOuterRectangle();
     } else {
-        var outerExtent = this._outerExtent;
-        var width = outerExtent.east - outerExtent.west;
-        var height = outerExtent.north - outerExtent.south;
+        var outerRectangle = this._outerRectangle;
+        var width = outerRectangle.east - outerRectangle.west;
+        var height = outerRectangle.north - outerRectangle.south;
         var pushBlend = this.pushBlend = this._pushBlendFraction * ((width < height) ? width : height);
         
-        var innerExtent = this._innerExtent = outerExtent.clone();
-        innerExtent.west += pushBlend;
-        innerExtent.south += pushBlend;
-        innerExtent.east -= pushBlend;
-        innerExtent.north -= pushBlend;
+        var innerRectangle = this._innerRectangle = outerRectangle.clone();
+        innerRectangle.west += pushBlend;
+        innerRectangle.south += pushBlend;
+        innerRectangle.east -= pushBlend;
+        innerRectangle.north -= pushBlend;
     }
 };
 
 /**
- * Returns the actual outer extent of the push region.
- * @return {Extent}  The outer extent.
+ * Returns the actual outer rectangle of the push region.
+ * @return {Rectangle}  The outer rectangle.
  */
-GroundPush.prototype.getOuterExtent = function() {
+GroundPush.prototype.getOuterRectangle = function() {
     'use strict';
-    return this._outerExtent;
+    return this._outerRectangle;
 };
 
 /**
- * Sets the outer extent of the push region. Recalculates the inner extent automatically.
- * @param {Extent} newExtent  The new outer extent of the push region.
+ * Sets the outer rectangle of the push region. Recalculates the inner rectangle automatically.
+ * @param {Rectangle} newRectangle  The new outer rectangle of the push region.
  */
-GroundPush.prototype.setOuterExtent = function(newExtent) {
+GroundPush.prototype.setOuterRectangle = function(newRectangle) {
     'use strict';
-    if (this.Cesium.defined(newExtent)) {
-        this._outerExtent = newExtent;
-        this.setInnerExtent();
+    if (this.Cesium.defined(newRectangle)) {
+        this._outerRectangle = newRectangle;
+        this.setInnerRectangle();
     } else {
-        var innerExtent = this._innerExtent;
-        var width = innerExtent.east - innerExtent.west;
-        var height = innerExtent.north - innerExtent.south;
+        var innerRectangle = this._innerRectangle;
+        var width = innerRectangle.east - innerRectangle.west;
+        var height = innerRectangle.north - innerRectangle.south;
         var pushBlend = this.pushBlend = this._pushBlendFraction * ((width < height) ? width : height);
         
-        var outerExtent = this._outerExtent = innerExtent.clone();
-        outerExtent.west -= pushBlend;
-        outerExtent.south -= pushBlend;
-        outerExtent.east += pushBlend;
-        outerExtent.north += pushBlend;
+        var outerRectangle = this._outerRectangle = innerRectangle.clone();
+        outerRectangle.west -= pushBlend;
+        outerRectangle.south -= pushBlend;
+        outerRectangle.east += pushBlend;
+        outerRectangle.north += pushBlend;
     }
 };
