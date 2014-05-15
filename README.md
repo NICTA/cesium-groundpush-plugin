@@ -29,7 +29,7 @@ Before you do __anything__ with Cesium you must setup and initialise the Ground-
 
 First, setup the options you require for the ground-push. Currently these include:
 
-* `pushDepth` - The intial height of the push region in metres.
+* `pushDepth` - The initial height of the push region in metres.
 * `pushRectangle` - __Required__: A Cesium Rectangle of the region to be pushed.
 * `pushBaseTint` - A Cesium Cartesian3 representing the RGB colour tint of the base of the pushed region. 
 * `pushSidesTint` - A Cesium Cartesian3 representing the RGB colour tint of the sides of the pushed region.
