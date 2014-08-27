@@ -1,5 +1,9 @@
+"use strict";
+
 var GroundPushGlobeFS = "#line 0\n\
 //#define SHOW_TILE_BOUNDARIES\n\
+\n\
+uniform vec4 u_initialColor;\n\
 \n\
 #if TEXTURE_UNITS > 0\n\
 uniform sampler2D u_dayTextures[TEXTURE_UNITS];\n\
@@ -42,21 +46,23 @@ uniform float u_zoomedOutOceanSpecularIntensity;\n\
 uniform sampler2D u_oceanNormalMap;\n\
 #endif\n\
 \n\
-#ifdef ENABLE_LIGHTING\n\
+#ifdef ENABLE_DAYNIGHT_SHADING\n\
 uniform vec2 u_lightingFadeDistance;\n\
 #endif\n\
 \n\
 varying vec3 v_positionMC;\n\
 varying vec3 v_positionEC;\n\
 varying vec2 v_textureCoordinates;\n\
+varying vec3 v_normalMC;\n\
+varying vec3 v_normalEC;\n\
 \n\
 varying float v_push;\n\
 uniform vec3 u_pushBaseTint;\n\
 uniform vec3 u_pushSidesTint;\n\
 uniform float u_showOnlyInPushedRegion[TEXTURE_UNITS];\n\
 \n\
-vec3 sampleAndBlend(\n\
-    vec3 previousColor,\n\
+vec4 sampleAndBlend(\n\
+    vec4 previousColor,\n\
     sampler2D texture,\n\
     vec2 tileTextureCoordinates,\n\
     vec4 textureCoordinateRectangle,\n\
@@ -109,28 +115,20 @@ vec3 sampleAndBlend(\n\
     color = pow(color, vec3(textureOneOverGamma));\n\
 #endif\n\
 \n\
+    float sourceAlpha = alpha * textureAlpha;\n\
     // If we're clipping this layer\n\
     if (showOnlyInPushedRegion > 0.5){\n\
-        float amt2 = 1.0-smoothstep(0.95, 1.0, v_push);\n\
-        color = mix(color, vec3(0.0), amt2);\n\
-        alpha = mix(alpha, 0.0, amt2);\n\
-    } else if (v_push > 0.0001){\n\
-        // Only darken if we're not clipping a layer\n\
-        if( showOnlyInPushedRegion < 0.5 ) {\n\
-            vec3 edgeColor = color * u_pushSidesTint;\n\
-            vec3 pushColor = color * u_pushBaseTint;\n\
-            float amt = 1.0-smoothstep(0.0, 0.05, v_push);\n\
-            float amt2 = 1.0-smoothstep(0.95, 1.0, v_push);\n\
-            color = mix(color, edgeColor, (1.0-amt));\n\
-            color = mix(color, pushColor, (1.0-amt2));\n\
-        }\n\
+        sourceAlpha = mix(0.0, sourceAlpha, v_push);\n\
+        color = mix(vec3(0.0), color, v_push);\n\
     }\n\
+    float outAlpha = mix(previousColor.a, 1.0, sourceAlpha);\n\
+    vec3 outColor = mix(previousColor.rgb * previousColor.a, color, sourceAlpha) / outAlpha;\n\
 \n\
-    return mix(previousColor, color, alpha * textureAlpha);\n\
+    return vec4(outColor, outAlpha);\n\
 }\n\
 \n\
-vec3 computeDayColor(vec3 initialColor, vec2 textureCoordinates);\n\
-vec4 computeWaterColor(vec3 positionEyeCoordinates, vec2 textureCoordinates, mat3 enuToEye, vec3 imageryColor, float specularMapValue);\n\
+vec4 computeDayColor(vec4 initialColor, vec2 textureCoordinates);\n\
+vec4 computeWaterColor(vec3 positionEyeCoordinates, vec2 textureCoordinates, mat3 enuToEye, vec4 imageryColor, float specularMapValue);\n\
 \n\
 void main()\n\
 {\n\
@@ -138,22 +136,22 @@ void main()\n\
     // where the fragment shader sees textures coordinates < 0.0 and > 1.0 for the\n\
     // fragments on the edges of tiles even though the vertex shader is outputting\n\
     // coordinates strictly in the 0-1 range.\n\
-    vec3 initialColor = vec3(0.0, 0.0, 0.5);\n\
-    vec3 startDayColor = computeDayColor(initialColor, clamp(v_textureCoordinates, 0.0, 1.0));\n\
+    vec4 color = computeDayColor(u_initialColor, clamp(v_textureCoordinates, 0.0, 1.0));\n\
 \n\
 #ifdef SHOW_TILE_BOUNDARIES\n\
     if (v_textureCoordinates.x < (1.0/256.0) || v_textureCoordinates.x > (255.0/256.0) ||\n\
         v_textureCoordinates.y < (1.0/256.0) || v_textureCoordinates.y > (255.0/256.0))\n\
     {\n\
-        startDayColor = vec3(1.0, 0.0, 0.0);\n\
+        color = vec4(1.0, 0.0, 0.0, 1.0);\n\
     }\n\
 #endif\n\
 \n\
-    vec4 color = vec4(startDayColor, 1.0);\n\
-    \n\
-#if defined(SHOW_REFLECTIVE_OCEAN) || defined(ENABLE_LIGHTING)\n\
+#if defined(SHOW_REFLECTIVE_OCEAN) || defined(ENABLE_DAYNIGHT_SHADING)\n\
     vec3 normalMC = normalize(czm_geodeticSurfaceNormal(v_positionMC, vec3(0.0), vec3(1.0)));   // normalized surface normal in model coordinates\n\
     vec3 normalEC = normalize(czm_normal3D * normalMC);                                         // normalized surface normal in eye coordiantes\n\
+#elif defined(ENABLE_VERTEX_LIGHTING)\n\
+    vec3 normalMC = normalize(v_normalMC);                                                     // normalized surface normal in model coordinates\n\
+    vec3 normalEC = normalize(v_normalEC);                                                      // normalized surface normal in eye coordiantes\n\
 #endif\n\
 \n\
 #ifdef SHOW_REFLECTIVE_OCEAN\n\
@@ -172,11 +170,14 @@ void main()\n\
 \n\
         vec2 textureCoordinates = mix(ellipsoidTextureCoordinates, ellipsoidFlippedTextureCoordinates, czm_morphTime * smoothstep(0.9, 0.95, normalMC.z));\n\
 \n\
-        color = computeWaterColor(v_positionEC, textureCoordinates, enuToEye, startDayColor, mask);\n\
+        color = computeWaterColor(v_positionEC, textureCoordinates, enuToEye, color, mask);\n\
     }\n\
 #endif\n\
 \n\
-#ifdef ENABLE_LIGHTING\n\
+#ifdef ENABLE_VERTEX_LIGHTING\n\
+    float diffuseIntensity = czm_getLambertDiffuse(czm_sunDirectionEC, normalEC) * 0.8 + 0.2;\n\
+    gl_FragColor = vec4(color.rgb * diffuseIntensity, color.a);\n\
+#elif defined(ENABLE_DAYNIGHT_SHADING)\n\
     float diffuseIntensity = clamp(czm_getLambertDiffuse(czm_sunDirectionEC, normalEC) * 5.0 + 0.3, 0.0, 1.0);\n\
     float cameraDist = length(czm_view[3]);\n\
     float fadeOutDist = u_lightingFadeDistance.x;\n\
@@ -205,7 +206,7 @@ const float oceanAnimationSpeed = 0.006;\n\
 const float oceanAmplitude = 2.0;\n\
 const float oceanSpecularIntensity = 0.5;\n\
 \n\
-vec4 computeWaterColor(vec3 positionEyeCoordinates, vec2 textureCoordinates, mat3 enuToEye, vec3 imageryColor, float specularMapValue)\n\
+vec4 computeWaterColor(vec3 positionEyeCoordinates, vec2 textureCoordinates, mat3 enuToEye, vec4 imageryColor, float specularMapValue)\n\
 {\n\
     float time = czm_frameNumber * oceanAnimationSpeed;\n\
     \n\
@@ -251,7 +252,7 @@ vec4 computeWaterColor(vec3 positionEyeCoordinates, vec2 textureCoordinates, mat
     float surfaceReflectance = mix(0.0, mix(u_zoomedOutOceanSpecularIntensity, oceanSpecularIntensity, waveIntensity), specularMapValue);\n\
     float specular = specularIntensity * surfaceReflectance;\n\
     \n\
-    return vec4(imageryColor + diffuseHighlight + nonDiffuseHighlight + specular, 1.0); \n\
+    return vec4(imageryColor.rgb + diffuseHighlight + nonDiffuseHighlight + specular, imageryColor.a);\n\
 }\n\
 \n\
 #endif // #ifdef SHOW_REFLECTIVE_OCEAN\n\

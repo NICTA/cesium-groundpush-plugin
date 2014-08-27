@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * The GroundPush Object that initialises Cesium to allow for push a defined rectangle.
  * @param {Cesium} Cesium  The result of Cesium.js
@@ -11,7 +13,6 @@
  * Make changes to the pushDepth by accessing the gp.pushDepth property.
  */
 var GroundPush = function(Cesium, options) {
-    'use strict';
     // Defines the fraction of the rectangle width will be the push blend value.
     this._pushBlendFraction = 0.001;
     
@@ -80,40 +81,13 @@ var GroundPush = function(Cesium, options) {
     Cesium.HeightmapTerrainData.prototype.createMesh = newCreateMesh;
     Cesium.QuantizedMeshTerrainData.prototype._oldCreateMesh = Cesium.QuantizedMeshTerrainData.prototype.createMesh;
     Cesium.QuantizedMeshTerrainData.prototype.createMesh = newCreateMesh;
-
     
-    // Replace the original Cesium GlobeSurfaceShaderSet.
+
+    // Replace the original Cesium.GlobeSurfaceShaderSet with our custom one.
     Cesium.GlobeSurfaceShaderSet.prototype = GroundPushGlobeSurfaceShaderSet.prototype;
     
-    // Add the uniforms to the central body 
-    Cesium.Globe.prototype._oldUpdate = Cesium.Globe.prototype.update;
-    Cesium.Globe.prototype.update = function(context, frameState, commandList) {
-        // Call the original constructor.
-        if (!Cesium.defined(this._drawUniforms.u_pushDepth)) {
-            // Add extra draw uniforms.
-            this._drawUniforms.u_pushDepth = function() {
-                return that.pushDepth;
-            };
-            this._drawUniforms.u_pushRectangle = function() {
-                var rectangle = that._innerRectangle;
-                return new Cesium.Cartesian4(rectangle.west, rectangle.south, rectangle.east, rectangle.north);
-            };
-            this._drawUniforms.u_pushBlend = function() {
-                return that.pushBlend;
-            };
-            this._drawUniforms.u_pushBaseTint = function() {
-                return that.pushBaseTint;
-            };
-            this._drawUniforms.u_pushSidesTint = function() {
-                return that.pushSidesTint;
-            };
+    var debug = true;
 
-        }
-
-        this._oldUpdate(context, frameState, commandList);
-    };
-
-    
     // Intercepts the getShaderProgram function and replaces the current vertex and fragment shaders
     // allowing to push vertices and texture the push region.
     Cesium.GlobeSurfaceShaderSet.prototype._oldGetShaderProgram = Cesium.GlobeSurfaceShaderSet.prototype.getShaderProgram;
@@ -126,6 +100,7 @@ var GroundPush = function(Cesium, options) {
             this.baseVertexShaderString = GroundPushGlobeVS + this.baseVertexShaderString.substring(end);
         }
 
+        // console.log(this.baseFragmentShaderString);
         end = this.baseFragmentShaderString.indexOf('#line 0', this.baseFragmentShaderString.indexOf('#line 0') + 1);
         if (end < 0) {
             this.baseFragmentShaderString = GroundPushGlobeFS;
@@ -138,45 +113,59 @@ var GroundPush = function(Cesium, options) {
     
     
     // Cesium.GlobeSurface tweaking - adding uniforms and extra commands.
-    Cesium.GlobeSurface.prototype._oldUpdate = Cesium.GlobeSurface.prototype.update;
-    Cesium.GlobeSurface.prototype.update = function(context, frameState, commandList, globeUniformMap, shaderSet, renderState, projection) {
+    Cesium.GlobeSurfaceTileProvider.prototype._oldEndUpdate = Cesium.GlobeSurfaceTileProvider.prototype.endUpdate;
+    Cesium.GlobeSurfaceTileProvider.prototype.endUpdate = function(context, frameState, commandList) {
         // Call the original update
-        this._oldUpdate(context, frameState, commandList, globeUniformMap, shaderSet, renderState, projection);
+        this._oldEndUpdate(context, frameState, commandList);
 
         // Now modify the tile commands to include the required uniforms.
-        var tileCommands = this._tileCommands;
-        var realTileRectangleFunc = function() { return this.realTileRectangle; };
-        var showOnlyInPushedRegionFunc = function() { return this.showOnlyInPushedRegion; };
+        var drawCommands = this._drawCommands;
+        var uniformMaps = this._uniformMaps;
 
-        for (var i = 0; i < tileCommands.length; i++) {
-            var uniformMap = tileCommands[i].uniformMap;
+        // Adding realTileRectangle and showOnlyInPushedInRegion uniforms to the map for each drawCommand.
+        for (var i = 0; i < uniformMaps.length; i++) {
+            if (!uniformMaps[i]._customUniformsSet) {
+                // Add custom uniforms to the uniform map for the globe surface if not already added.
+                uniformMaps[i].u_realTileRectangle = function() {
+                    return this.realTileRectangle;
+                };
+                uniformMaps[i].u_showOnlyInPushedRegion = function() {
+                    return this.showOnlyInPushedRegion;
+                };
+                uniformMaps[i].u_pushDepth = function() {
+                    return that.pushDepth;
+                };
+                uniformMaps[i].u_pushRectangle = function() {
+                    var rectangle = that._innerRectangle;
+                    return new Cesium.Cartesian4(rectangle.west, rectangle.south, rectangle.east, rectangle.north);
+                };
+                uniformMaps[i].u_pushBlend = function() {
+                    return that.pushBlend;
+                };
+                uniformMaps[i].u_pushBaseTint = function() {
+                    return that.pushBaseTint;
+                };
+                uniformMaps[i].u_pushSidesTint = function() {
+                    return that.pushSidesTint;
+                };
+                uniformMaps[i].realTileRectangle = new Cesium.Cartesian4();
+                uniformMaps[i].showOnlyInPushedRegion = [];
+                uniformMaps[i]._customUniformsSet = true;
+            }
 
-            if (!Cesium.defined(uniformMap.u_realTileRectangle)) {
-                uniformMap.u_realTileRectangle = realTileRectangleFunc;
-            }
-            if (!Cesium.defined(uniformMap.u_showOnlyInPushedRegion)) {
-                uniformMap.u_showOnlyInPushedRegion = showOnlyInPushedRegionFunc;
-            }
-            if (!Cesium.defined(uniformMap.realTileRectangle)) {
-                uniformMap.realTileRectangle = new Cesium.Cartesian4();
-            }
-            if (!Cesium.defined(uniformMap.showOnlyInPushedRegion)) {
-                uniformMap.showOnlyInPushedRegion = [];
-            }
-
-            var realTileRectangle = tileCommands[i].owner.rectangle;
+            var realTileRectangle = drawCommands[i].owner.rectangle;
             var numberOfDayTextures = 0;
 
-            while (numberOfDayTextures < tileCommands[i].uniformMap.dayTextures.length) {
-                var imageryLayer = tileCommands[i].owner.imagery[numberOfDayTextures].readyImagery.imageryLayer;
-                if (imageryLayer.showOnlyInPushedRegion) {
-                    uniformMap.showOnlyInPushedRegion[numberOfDayTextures] = 1.0;
+            while (numberOfDayTextures < uniformMaps[i].dayTextures.length) {
+                var imageryLayer = this._imageryLayers._layers[numberOfDayTextures];
+                if (Cesium.defined(imageryLayer) && imageryLayer.showOnlyInPushedRegion) {
+                    uniformMaps[i].showOnlyInPushedRegion[numberOfDayTextures] = 1.0;
                 } else {
-                    uniformMap.showOnlyInPushedRegion[numberOfDayTextures] = 0.0;
+                    uniformMaps[i].showOnlyInPushedRegion[numberOfDayTextures] = 0.0;
                 }
                 ++numberOfDayTextures;
             }
-            uniformMap.realTileRectangle= new Cesium.Cartesian4(realTileRectangle.west, realTileRectangle.south, realTileRectangle.east, realTileRectangle.north);
+            uniformMaps[i].realTileRectangle = new Cesium.Cartesian4(realTileRectangle.west, realTileRectangle.south, realTileRectangle.east, realTileRectangle.north);
         }
     };
     
@@ -414,7 +403,9 @@ var GroundPush = function(Cesium, options) {
             throw 'plane is required.';
         }
 
-        var difference = Cesium.Cartesian3.subtract(endPoint1, endPoint0);
+        var difference = new Cesium.Cartesian3();
+        Cesium.Cartesian3.subtract(endPoint1, endPoint0, difference);
+
         var normal = plane.normal;
         var nDotDiff = Cesium.Cartesian3.dot(normal, difference);
 
@@ -681,6 +672,10 @@ var GroundPush = function(Cesium, options) {
                         ]
                     };
                 }
+            } else {
+                // All vertices are one side of the slice plane.
+                // No new vertices required...
+                return undefined;
             }
         }
     }

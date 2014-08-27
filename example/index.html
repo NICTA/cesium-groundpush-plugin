@@ -2,9 +2,9 @@
 <html>
 <head>
 <title>Cesium Ground-push Demo</title>
-    <link rel="stylesheet" href="../lib/cesium-b28/Widgets/widgets.css">
+    <link rel="stylesheet" href="../lib/Cesium-1.0/Widgets/widgets.css">
     <link rel="stylesheet" href="./example.css">
-    <script type="text/javascript" src="../lib/cesium-b28/Cesium.js"></script>
+    <script type="text/javascript" src="../lib/Cesium-1.0/Cesium.js"></script>
     <script type="text/javascript" src="../GroundPushGlobeSurfaceShaderSet.js"></script>
     <script type="text/javascript" src="../GroundPushGlobeVS.js"></script>
     <script type="text/javascript" src="../GroundPushGlobeFS.js"></script>
@@ -37,6 +37,15 @@
 
     var cesiumWidget = new Cesium.CesiumWidget('cesiumContainer');
     var globe = cesiumWidget.scene.globe;
+
+    // cesiumWidget.scene.terrainProvider = new Cesium.CesiumTerrainProvider({
+    //     url : '//cesiumjs.org/smallterrain',
+    //     credit : 'Terrain data courtesy Analytical Graphics, Inc.'
+    // });
+
+    cesiumWidget.scene.terrainProvider = new Cesium.CesiumTerrainProvider({
+        url : '//cesiumjs.org/stk-terrain/tilesets/world/tiles'
+    });
 
     // Set the camera to view the push rectangle.
     cesiumWidget.scene.camera.viewRectangle(pushRectangle);
