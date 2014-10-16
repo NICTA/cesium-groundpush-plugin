@@ -1,5 +1,3 @@
-"use strict";
-
 var GroundPushGlobeFS = "#line 0\n\
 //#define SHOW_TILE_BOUNDARIES\n\
 \n\
@@ -116,13 +114,24 @@ vec4 sampleAndBlend(\n\
 #endif\n\
 \n\
     float sourceAlpha = alpha * textureAlpha;\n\
-    // If we're clipping this layer\n\
-    if (showOnlyInPushedRegion > 0.5){\n\
-        sourceAlpha = mix(0.0, sourceAlpha, v_push);\n\
-        color = mix(vec3(0.0), color, v_push);\n\
-    }\n\
     float outAlpha = mix(previousColor.a, 1.0, sourceAlpha);\n\
     vec3 outColor = mix(previousColor.rgb * previousColor.a, color, sourceAlpha) / outAlpha;\n\
+\n\
+    // If we're clipping this layer\n\
+    if (showOnlyInPushedRegion > 0.5){\n\
+        float amt = smoothstep(0.95, 1.0, v_push);\n\
+        outColor = mix(previousColor.rgb, outColor.rgb, amt);\n\
+    } else if (v_push > 0.0001){\n\
+        // Only darken if we're not clipping a layer\n\
+        if( showOnlyInPushedRegion < 0.5 ) {\n\
+            vec3 edgeColor = outColor * u_pushSidesTint;\n\
+            vec3 pushColor = outColor * u_pushBaseTint;\n\
+            float amt = 1.0-smoothstep(0.0, 0.05, v_push);\n\
+            float amt2 = 1.0-smoothstep(0.95, 1.0, v_push);\n\
+            outColor = mix(outColor, edgeColor, (1.0-amt));\n\
+            outColor = mix(outColor, pushColor, (1.0-amt2));\n\
+        }\n\
+    }\n\
 \n\
     return vec4(outColor, outAlpha);\n\
 }\n\

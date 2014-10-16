@@ -91,8 +91,6 @@ GroundPushGlobeSurfaceShaderSet.prototype.getShaderProgram = function(context, t
             '    return color;\n' +
             '}';
 
-            // console.log(fs);
-
         shader = context.shaderCache.getShaderProgram(
             vs,
             fs,

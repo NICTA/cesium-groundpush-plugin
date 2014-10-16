@@ -1,5 +1,3 @@
-"use strict";
-
 var GroundPushGlobeVS = "#line 0\n\
 attribute vec4 position3DAndHeight;\n\
 attribute vec2 textureCoordAndEncodedNormals;\n\
