@@ -1,9 +1,9 @@
-"use strict";
-
 /**
  * Replacement for the original GlobeSurfaceShaderSet in Cesium.
  */
 var GroundPushGlobeSurfaceShaderSet= function(attributeLocations) {
+    "use strict";
+
     this.baseVertexShaderString = undefined;
     this.baseFragmentShaderString = undefined;
     this._attributeLocations = Cesium.terrainAttributeLocations;
