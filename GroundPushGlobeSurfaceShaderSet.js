@@ -2,15 +2,15 @@
  * Replacement for the original GlobeSurfaceShaderSet in Cesium.
  */
 var GroundPushGlobeSurfaceShaderSet= function(attributeLocations) {
-    'use strict';
+    "use strict";
+
     this.baseVertexShaderString = undefined;
     this.baseFragmentShaderString = undefined;
-    this._attributeLocations = attributeLocations;
+    this._attributeLocations = Cesium.terrainAttributeLocations;
     this._shaders = {};
 };
 
 GroundPushGlobeSurfaceShaderSet.prototype.invalidateShaders = function() {
-    'use strict';
     var shaders = this._shaders;
     for ( var keyword in shaders) {
         if (shaders.hasOwnProperty(keyword)) {
@@ -53,7 +53,6 @@ GroundPushGlobeSurfaceShaderSet.prototype.invalidateShaders = function() {
 };
 
 GroundPushGlobeSurfaceShaderSet.prototype.getShaderProgram = function(context, textureCount, applyBrightness, applyContrast, applyHue, applySaturation, applyGamma, applyAlpha) {
-    'use strict';
     var key = this.getShaderKey(textureCount, applyBrightness, applyContrast, applyHue, applySaturation, applyGamma, applyAlpha);
     var shader = this._shaders[key];
     if (!Cesium.defined(shader)) {
@@ -67,9 +66,9 @@ GroundPushGlobeSurfaceShaderSet.prototype.getShaderProgram = function(context, t
             (applyAlpha ? '#define APPLY_ALPHA\n' : '') +
             '#define TEXTURE_UNITS ' + textureCount + '\n' +
             this.baseFragmentShaderString + '\n' +
-            'vec3 computeDayColor(vec3 initialColor, vec2 textureCoordinates)\n' +
+            'vec4 computeDayColor(vec4 initialColor, vec2 textureCoordinates)\n' +
             '{\n' +
-            '    vec3 color = initialColor;\n';
+            '    vec4 color = initialColor;\n';
 
         for (var i = 0; i < textureCount; ++i) {
             fs +=
