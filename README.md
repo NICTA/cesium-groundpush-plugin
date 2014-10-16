@@ -11,7 +11,7 @@ A plugin that enables "excavating" terrain of a defined rectangle within Cesium.
 [![screengrab](/images/screengrab.jpg)](http://nicta.github.io/cesium-groundpush-plugin/example/)
 
 ## Cesium version
-Currently working with version [1.0](http://cesiumjs.org/downloads.html). For earlier Cesium releases, please check the Ground-Push Plugin [releases](https://github.com/NICTA/cesium-groundpush-plugin/releases).
+Currently working with Cesium versions 1.0 through to [1.2](http://cesiumjs.org/downloads.html). For earlier releases, please check the Ground-Push Plugin [releases](https://github.com/NICTA/cesium-groundpush-plugin/releases).
 
 ## License
 Apache 2.0. Free for commercial and non-commercial use. See [LICENSE.md](LICENSE.md).
@@ -80,7 +80,11 @@ gp.pushDepth = -20000;
 
 Currently, however, you cannot change the push rectangle once ground-push has been initialised.
 
-##Known Issues
+## Contributing
+
+Your more than welcome to contribute. Please do this via a pull request.
+
+## Known Issues
 
  * Zooming too close to the pushed region - tiles within the push rectangle will disappear due to culling.
  * Horizon culling can be an issue at low angles.
